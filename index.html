@@ -147,6 +147,7 @@ h2{font-size:15px;font-weight:700;margin:0;letter-spacing:-.015em}
 .input:disabled{opacity:.6}
 .rng{display:flex;align-items:center;gap:6px}
 .rng .input{min-width:140px}
+.dwrap{position:relative;display:inline-flex}.dwrap .input{padding-right:34px;font-variant-numeric:tabular-nums}.dwrap .dpk{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:28px;height:28px;border:0;background:transparent;color:var(--muted);cursor:pointer;display:grid;place-items:center;border-radius:8px}.dwrap .dpk:hover{color:var(--accent);background:var(--accent-soft)}.dwrap .dhid{position:absolute;left:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}
 .btns{display:flex;flex-wrap:wrap;gap:6px;margin-left:auto}
 .btn{border:1px solid var(--line2);background:var(--surface2);border-radius:10px;padding:0 14px;height:36px;font-weight:700;font-size:13px;color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:all .15s}
 .btn:hover{border-color:var(--accent)}
@@ -573,15 +574,20 @@ const OPTS = {
   '표시기준':['생산량','인시당 생산량','가동율'],'제품군':['전체','홍삼','유산균','비타민','오메가3','기타'],'대분류':['전체','분말','연질','액상','정제'],'품목그룹':['전체','원료','부자재'],'입고품목그룹':['전체','원료','부자재','상품'],
   '출고유형':['전체','생산출고','기타출고','반품출고','시생산출고'],'액상':['액상'],'납품상태(전체·대기·진행·완료)':['전체','입고대기','가입고','입고완료'],'년도':['2026','2025','2024'],'공정':['전체'].concat(D.proc),'설비명':['전체'].concat(D.equip.slice(0,8)),'품목별 합계':['전체','합계만'],
 };
+function dinp(kind, val, attrs){
+  return `<span class="dwrap"><input class="input" type="text" inputmode="numeric" autocomplete="off" value="${val}" placeholder="${kind==='month'?'YYYY-MM':'YYYY-MM-DD'}" maxlength="${kind==='month'?7:10}" ${attrs}><button type="button" class="dpk" tabindex="-1" aria-label="calendar"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" fill="none"/></svg></button><input class="dhid" type="${kind}" tabindex="-1" aria-hidden="true"></span>`;
+}
+document.addEventListener('click', e => { const b=e.target.closest('.dpk'); if(!b) return; e.preventDefault(); const w=b.parentElement, tx=w.querySelector('.input'), h=w.querySelector('.dhid'); h.value=tx.value; h.onchange=()=>{ tx.value=h.value; tx.dispatchEvent(new Event('change',{bubbles:true})); }; try{ h.showPicker(); }catch(_){ h.focus(); h.click(); } });
+document.addEventListener('blur', e => { const el=e.target; if(!el.closest||!el.closest('.dwrap')||!el.classList.contains('input')) return; const m=el.maxLength===7, d=el.value.replace(/\D/g,''); if(!d) return; el.value = m ? (d.length>=6?`${d.slice(0,4)}-${d.slice(4,6)}`:el.value) : (d.length>=8?`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`:el.value); }, true);
 function field(label, i){
   const L = esc(t(label)), F = `data-f="${i}"`;
   if (label.includes('~')) {
     const isM = /\(월\)|연도·월/.test(label);
     const a = isM?`${TODAY.getFullYear()}-01`:ds(addD(TODAY,-14)), b = isM?`${TODAY.getFullYear()}-${pad(TODAY.getMonth()+1)}`:ds(addD(TODAY,7));
-    return `<label class="fld">${L}<span class="rng"><input class="input" type="${isM?'month':'date'}" value="${a}" ${F} data-r="a"><span>~</span><input class="input" type="${isM?'month':'date'}" value="${b}" ${F} data-r="b"></span></label>`;
+    return `<label class="fld">${L}<span class="rng">${dinp(isM?'month':'date',a,`${F} data-r="a"`)}<span>~</span>${dinp(isM?'month':'date',b,`${F} data-r="b"`)}</span></label>`;
   }
-  if (/일자$|^생산일자$/.test(label)) return `<label class="fld">${L}<input class="input" type="date" value="${ds(TODAY)}" ${F} data-r="d"></label>`;
-  if (/년\/월|\(누계기준\)월/.test(label)) return `<label class="fld">${L}<input class="input" type="month" value="${TODAY.getFullYear()}-${pad(TODAY.getMonth()+1)}" ${F} data-r="m"></label>`;
+  if (/일자$|^생산일자$/.test(label)) return `<label class="fld">${L}${dinp('date',ds(TODAY),`${F} data-r="d"`)}</label>`;
+  if (/년\/월|\(누계기준\)월/.test(label)) return `<label class="fld">${L}${dinp('month',`${TODAY.getFullYear()}-${pad(TODAY.getMonth()+1)}`,`${F} data-r="m"`)}</label>`;
   const o = OPTS[label];
   if (o) return `<label class="fld">${L}<select class="input" ${F} data-r="s">${o.map(x=>`<option value="${esc(x)}">${esc(t(x))}</option>`).join('')}</select></label>`;
   return `<label class="fld">${L}<input class="input" ${F} data-r="t" placeholder="${esc(t('{f} 입력',{f:t(label)}))}"></label>`;
